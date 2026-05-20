@@ -1,459 +1,268 @@
 import { useState, useRef, useEffect } from "react";
 import { callAgent, SUGGESTIONS } from "./agent.js";
-import { ThinkingDots, ProductCard, MemoryPill } from "./components.jsx";
 
-// ─── Global styles (injected once) ─────────────────────────────────────────
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a12; }
-  html { scroll-behavior: smooth; }
-  @keyframes bounce {
-    0%,60%,100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
-  }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  textarea { font-family: inherit; }
-  textarea:focus { outline: none; }
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-  .product-card:hover {
-    border-color: rgba(167,139,250,0.35) !important;
-    transition: border-color 0.2s;
-  }
-`;
-
-// ─── App ────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [query, setQuery]       = useState("");
-  const [memory, setMemory]     = useState([]);   // persistent preference notes
-  const [messages, setMessages] = useState([]);   // conversation history
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(null);
-  const bottomRef               = useRef(null);
+  const [query, setQuery]           = useState("");
+  const [memory, setMemory]         = useState([]);
+  const [messages, setMessages]     = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState(null);
+  const [fileBase64, setFileBase64] = useState(null);
+  const [fileName, setFileName]     = useState(null);
+  const [fileType, setFileType]     = useState(null);
+  const bottomRef                   = useRef(null);
+  const fileInputRef                = useRef(null);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // ── Main search handler ────────────────────────────────────────────────
+  function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFileBase64(reader.result.split(",")[1]);
+      setFileName(file.name);
+      setFileType(file.type);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  function clearFile() { setFileBase64(null); setFileName(null); setFileType(null); }
+
   async function handleSearch(override) {
     const userQuery = (override ?? query).trim();
-    if (!userQuery || loading) return;
-
+    if ((!userQuery && !fileBase64) || loading) return;
     setQuery("");
     setError(null);
-    setMessages((prev) => [...prev, { type: "user", text: userQuery }]);
+    const displayText = userQuery
+      ? fileBase64 ? `${userQuery} [+ ${fileName}]` : userQuery
+      : `Analyse my receipt: ${fileName}`;
+    setMessages((prev) => [...prev, { type: "user", text: displayText }]);
     setLoading(true);
-
+    const currentFile = fileBase64, currentFileType = fileType;
+    clearFile();
     try {
-      const result = await callAgent({ userQuery, memory });
-
-      // Persist preference memory across turns
-      if (result.memory_update) {
-        setMemory((prev) => [...prev, result.memory_update]);
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "agent",
-          reasoning: result.reasoning,
-          products: result.products,
-        },
-      ]);
+      const result = await callAgent({
+        userQuery: userQuery || "Analyse my receipt and recommend complementary products.",
+        memory, fileBase64: currentFile, fileType: currentFileType,
+      });
+      if (result.memory_update) setMemory((prev) => [...prev, result.memory_update]);
+      setMessages((prev) => [...prev, { type: "agent", reasoning: result.reasoning, products: result.products }]);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSearch();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSearch(); }
   }
 
+  const canSend = !loading && (!!query.trim() || !!fileBase64);
   const hasMessages = messages.length > 0;
 
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{GLOBAL_CSS}</style>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #f6f6f3; }
+        textarea:focus { outline: none; }
+        .suggestion:hover { background: #f0efe9 !important; }
+        .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; }
+        .send-btn:hover:not(:disabled) { background: #111 !important; }
+        .link:hover { text-decoration: underline; }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.25s ease; }
+      `}</style>
 
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: "'DM Sans', sans-serif",
-          color: "#f1f5f9",
-          background: "#0a0a12",
-        }}
-      >
-        {/* ── Header ── */}
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "16px 24px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            position: "sticky",
-            top: 0,
-            background: "rgba(10,10,18,0.95)",
-            backdropFilter: "blur(8px)",
-            zIndex: 10,
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              flexShrink: 0,
-            }}
-          >
-            🛍️
-          </div>
+      <div style={{ maxWidth: 660, margin: "0 auto", padding: "36px 20px 140px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 14, color: "#1a1a1a", lineHeight: 1.6 }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div
-              style={{
-                fontFamily: "'DM Serif Display', serif",
-                fontSize: 18,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              ShopAgent
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>ShopAgent</div>
+            <div style={{ fontSize: 12, color: "#999", marginTop: 1 }}>Your AI shopping assistant</div>
+          </div>
+          {memory.length > 0 && (
+            <div style={{ fontSize: 12, color: "#777", background: "#fff", border: "1px solid #e8e8e8", borderRadius: 20, padding: "4px 12px" }}>
+              {memory.length} preference{memory.length > 1 ? "s" : ""} saved
             </div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>
-              AI-powered personal shopper
+          )}
+        </div>
+
+        {/* Welcome */}
+        {!hasMessages && (
+          <div className="fade-up">
+            <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginBottom: 6 }}>What are you looking for?</div>
+            <div style={{ fontSize: 14, color: "#888", marginBottom: 20 }}>Pick a suggestion or type your own below.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="suggestion" onClick={() => handleSearch(s)} style={{
+                  textAlign: "left", padding: "11px 14px",
+                  background: "#fff", border: "1px solid #e8e8e8",
+                  borderRadius: 10, cursor: "pointer",
+                  fontSize: 13, color: "#333",
+                  transition: "background 0.15s",
+                }}>{s}</button>
+              ))}
+              <label className="suggestion" style={{
+                display: "block", textAlign: "left", padding: "11px 14px",
+                background: "#fff", border: "1px solid #e8e8e8",
+                borderRadius: 10, cursor: "pointer",
+                fontSize: 13, color: "#333",
+                transition: "background 0.15s",
+              }}>
+                📎 Upload a receipt for recommendations
+                <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={handleFileUpload} style={{ display: "none" }} />
+              </label>
             </div>
           </div>
-          <MemoryPill count={memory.length} />
-        </header>
+        )}
 
-        {/* ── Conversation area ── */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        {/* Messages */}
+        <div>
+          {messages.map((msg, i) => (
+            <div key={i} className="fade-up" style={{ marginBottom: 28 }}>
 
-            {/* Welcome screen */}
-            {!hasMessages && (
-              <div
-                style={{
-                  textAlign: "center",
-                  paddingTop: 48,
-                  animation: "fadeIn 0.6s ease",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "'DM Serif Display', serif",
-                    fontSize: 32,
-                    fontWeight: 400,
-                    lineHeight: 1.2,
-                    marginBottom: 10,
-                    background: "linear-gradient(135deg,#a78bfa,#34d399)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
-                >
-                  What are you shopping for?
-                </div>
-                <p style={{ color: "#64748b", fontSize: 14, marginBottom: 36, lineHeight: 1.6 }}>
-                  Tell me your needs, budget, and preferences.<br />
-                  I'll reason through the options and find the best matches with links.
-                </p>
-
-                {/* Suggestion chips */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    maxWidth: 480,
-                    margin: "0 auto",
-                  }}
-                >
-                  {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSearch(s)}
-                      style={{
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 10,
-                        padding: "10px 16px",
-                        color: "#94a3b8",
-                        fontSize: 13,
-                        textAlign: "left",
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(167,139,250,0.1)";
-                        e.currentTarget.style.borderColor = "rgba(167,139,250,0.3)";
-                        e.currentTarget.style.color = "#c4b5fd";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                        e.currentTarget.style.color = "#94a3b8";
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Messages */}
-            {messages.map((msg, idx) => (
-              <div key={idx} style={{ marginBottom: 32 }}>
-
-                {/* User bubble */}
-                {msg.type === "user" && (
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18 }}>
-                    <div
-                      style={{
-                        background: "rgba(124,58,237,0.18)",
-                        border: "1px solid rgba(124,58,237,0.28)",
-                        borderRadius: "14px 14px 4px 14px",
-                        padding: "10px 16px",
-                        maxWidth: "72%",
-                        fontSize: 14,
-                        color: "#e2e8f0",
-                        lineHeight: 1.55,
-                      }}
-                    >
-                      {msg.text}
-                    </div>
+              {msg.type === "user" && (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ background: "#1a1a1a", color: "#fff", borderRadius: "16px 16px 4px 16px", padding: "10px 16px", maxWidth: "75%", fontSize: 13 }}>
+                    {msg.text}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Agent response */}
-                {msg.type === "agent" && (
-                  <div style={{ animation: "fadeIn 0.4s ease" }}>
-
-                    {/* Reasoning bubble */}
-                    <div style={{ display: "flex", gap: 10, marginBottom: 18, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 9,
-                          background: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 15,
-                          flexShrink: 0,
-                          marginTop: 2,
-                        }}
-                      >
-                        🛍️
-                      </div>
-                      <div
-                        style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.07)",
-                          borderRadius: "4px 14px 14px 14px",
-                          padding: "10px 15px",
-                          maxWidth: "72%",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10,
-                            color: "#7c3aed",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            marginBottom: 4,
-                          }}
-                        >
-                          Agent reasoning
-                        </div>
-                        <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6 }}>
-                          {msg.reasoning}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Product grid */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                        gap: 14,
-                      }}
-                    >
-                      {msg.products?.map((p, i) => (
-                        <ProductCard key={i} product={p} index={i} />
-                      ))}
-                    </div>
+              {msg.type === "agent" && (
+                <div>
+                  <div style={{ fontSize: 12, color: "#999", marginBottom: 14, paddingLeft: 2, fontStyle: "italic" }}>
+                    {msg.reasoning}
                   </div>
-                )}
-              </div>
-            ))}
-
-            {/* Loading indicator */}
-            {loading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 9,
-                    background: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 15,
-                    flexShrink: 0,
-                  }}
-                >
-                  🛍️
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {msg.products?.map((p, j) => <ProductCard key={j} product={p} />)}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: "4px 14px 14px 14px",
-                    padding: "10px 16px",
-                    fontSize: 13,
-                    color: "#64748b",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  Searching for the best products <ThinkingDots />
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Error */}
-            {error && (
-              <div
-                style={{
-                  background: "rgba(248,113,113,0.08)",
-                  border: "1px solid rgba(248,113,113,0.2)",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  color: "#fca5a5",
-                  marginTop: 12,
-                }}
-              >
-                ⚠️ {error}
-              </div>
-            )}
+            </div>
+          ))}
 
-            {/* Latest memory note */}
-            {memory.length > 0 && hasMessages && !loading && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: "8px 14px",
-                  background: "rgba(124,58,237,0.06)",
-                  border: "1px solid rgba(124,58,237,0.14)",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  color: "#7c3aed",
-                }}
-              >
-                🧠 <strong>Remembered:</strong> {memory[memory.length - 1]}
-              </div>
-            )}
+          {loading && (
+            <div style={{ fontSize: 13, color: "#999", padding: "8px 0" }}>
+              <span style={{ display: "inline-flex", gap: 4 }}>
+                {[0,1,2].map(i => (
+                  <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: "#bbb", display: "inline-block", animation: `fadeUp 0.8s ${i*0.15}s ease-in-out infinite alternate` }} />
+                ))}
+              </span>
+            </div>
+          )}
+          {error && <div style={{ fontSize: 13, color: "#c44", marginTop: 8 }}>{error}</div>}
+          {memory.length > 0 && hasMessages && !loading && (
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>✓ Remembered: {memory[memory.length - 1]}</div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
 
-            <div ref={bottomRef} />
-          </div>
-        </main>
-
-        {/* ── Input bar ── */}
-        <footer
-          style={{
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            background: "rgba(10,10,18,0.97)",
-            padding: "14px 20px 18px",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 860,
-              margin: "0 auto",
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-end",
-            }}
-          >
+      {/* Fixed input */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(246,246,243,0.95)", backdropFilter: "blur(8px)", borderTop: "1px solid #e8e8e8", padding: "14px 20px 18px" }}>
+        <div style={{ maxWidth: 660, margin: "0 auto" }}>
+          {fileBase64 && (
+            <div style={{ fontSize: 12, color: "#666", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>{fileType === "application/pdf" ? "📄" : "🖼️"} {fileName}</span>
+              <button onClick={clearFile} style={{ fontSize: 11, color: "#c44", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Remove</button>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <button onClick={() => fileInputRef.current?.click()} style={{
+              width: 40, height: 40, borderRadius: 10, border: "1px solid #e0e0e0",
+              background: fileBase64 ? "#f0efe9" : "#fff",
+              cursor: "pointer", fontSize: 17, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              📎
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={handleFileUpload} style={{ display: "none" }} />
+            </button>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe what you're looking for… (budget, preferences, use case)"
+              placeholder={fileBase64 ? "Add a note or press Enter…" : "Describe what you're looking for…"}
               rows={2}
               style={{
-                flex: 1,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 12,
-                padding: "10px 14px",
-                color: "#f1f5f9",
-                fontSize: 14,
-                resize: "none",
-                lineHeight: 1.5,
-                transition: "border-color 0.2s",
+                flex: 1, padding: "10px 14px",
+                border: "1px solid #e0e0e0", borderRadius: 10,
+                fontSize: 13, resize: "none",
+                fontFamily: "inherit", lineHeight: 1.5,
+                background: "#fff",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(167,139,250,0.45)")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
             />
-            <button
-              onClick={() => handleSearch()}
-              disabled={loading || !query.trim()}
-              style={{
-                height: 58,
-                padding: "0 22px",
-                borderRadius: 12,
-                border: "none",
-                background:
-                  loading || !query.trim()
-                    ? "rgba(167,139,250,0.15)"
-                    : "linear-gradient(135deg,#7c3aed,#a78bfa)",
-                color: loading || !query.trim() ? "#475569" : "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading || !query.trim() ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {loading ? "Searching…" : "Find →"}
+            <button className="send-btn" onClick={() => handleSearch()} disabled={!canSend} style={{
+              height: 40, padding: "0 20px", borderRadius: 10, border: "none",
+              background: canSend ? "#1a1a1a" : "#e0e0e0",
+              color: canSend ? "#fff" : "#aaa",
+              fontSize: 13, fontWeight: 600,
+              cursor: canSend ? "pointer" : "not-allowed",
+              transition: "background 0.15s", whiteSpace: "nowrap", flexShrink: 0,
+            }}>
+              {loading ? "…" : "Find →"}
             </button>
           </div>
-          <p style={{ textAlign: "center", fontSize: 11, color: "#334155", marginTop: 8 }}>
-            Press Enter to search · Agent remembers preferences across queries
-          </p>
-        </footer>
+        </div>
       </div>
     </>
+  );
+}
+
+function ProductCard({ product }) {
+  const [open, setOpen] = useState(false);
+  const score = product.match_score;
+  const scoreColor = score >= 85 ? "#2a7a4b" : score >= 70 ? "#b07a10" : "#c44";
+
+  return (
+    <div className="card" style={{
+      background: "#fff", border: "1px solid #e8e8e8",
+      borderRadius: 12, padding: "14px 16px",
+      transition: "box-shadow 0.2s",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{product.brand}</div>
+          <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>{product.name}</div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{product.price}</div>
+          <div style={{ fontSize: 11, color: scoreColor, marginTop: 2 }}>{score}% match</div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 13, color: "#666", marginTop: 10, lineHeight: 1.55 }}>{product.why}</div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
+        <a href={product.link} target="_blank" rel="noopener noreferrer" className="link"
+          style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 500, textDecoration: "none" }}>
+          Search this →
+        </a>
+        <button onClick={() => setOpen(v => !v)} style={{
+          fontSize: 12, color: "#aaa", background: "none",
+          border: "none", cursor: "pointer", padding: 0,
+        }}>
+          {open ? "Hide details" : "Show details"}
+        </button>
+      </div>
+
+      {open && (product.pros?.length > 0 || product.cons?.length > 0) && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #f0f0f0", fontSize: 12, display: "flex", flexDirection: "column", gap: 3 }}>
+          {product.pros?.map((p, i) => <div key={i} style={{ color: "#2a7a4b" }}>+ {p}</div>)}
+          {product.cons?.map((c, i) => <div key={i} style={{ color: "#c44" }}>− {c}</div>)}
+        </div>
+      )}
+    </div>
   );
 }

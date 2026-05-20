@@ -195,7 +195,7 @@ export function MemoryPill({ count }) {
         whiteSpace: "nowrap",
       }}
     >
-      🧠 {count} preference{count > 1 ? "s" : ""} remembered
+      {count} preference{count > 1 ? "s" : ""} remembered
     </div>
   );
 }
