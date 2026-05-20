@@ -19,11 +19,11 @@ export async function callAgent({ userQuery, memory }) {
       ? `\n\nUser preference memory from previous searches:\n${memory.map((m, i) => `${i + 1}. ${m}`).join("\n")}`
       : "";
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("/api/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+     model: "claude-sonnet-4-5",
       max_tokens: 1000,
       system: SYSTEM_PROMPT + memoryContext,
       messages: [{ role: "user", content: userQuery }],
