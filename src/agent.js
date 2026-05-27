@@ -1,5 +1,5 @@
-import SYSTEM_PROMPT  from "../promp/shop-agent.md?raw"
-import EXTRACTOR_PROMPT from "../promp/receipt-extractor.md?raw"
+import SYSTEM_PROMPT  from "./promp/shop-agent.md?raw"
+import EXTRACTOR_PROMPT from "./promp/receipt-extractor.md?raw"
 export { SYSTEM_PROMPT }
 
 export const QUIZ_QUESTIONS = [

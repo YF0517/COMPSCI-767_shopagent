@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function readEnv(key) {
   try {
-    const lines = fs.readFileSync(path.resolve(".env"), "utf-8").split("\n");
+    const lines = fs.readFileSync(path.resolve("config/.env"), "utf-8").split("\n");
     for (const line of lines) {
       const m = line.match(new RegExp(`^${key}\\s*=\\s*(.+)$`));
       if (m) return m[1].trim().replace(/^["']|["']$/g, "");
@@ -42,7 +42,6 @@ app.post("/api/v1/messages", async (req, res) => {
   }
 });
 
-// ── /auth/config — sends Google Client ID to frontend ────────────────────────
 app.get("/auth/config", (req, res) => {
   res.json({ clientId: GOOGLE_CLIENT_ID });
 });
