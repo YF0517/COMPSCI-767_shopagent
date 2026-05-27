@@ -1,24 +1,23 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd())
-
-  return {
-    plugins: [react()],
-    server: {
-      proxy: {
-        '/api': {
-          target: 'https://api.anthropic.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-          headers: {
-            'x-api-key': env.VITE_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
-        },
+// All API calls proxy to the Express backend on port 3001
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+      "/gmail-api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+      "/auth": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
       },
     },
-  }
-})
+  },
+});
