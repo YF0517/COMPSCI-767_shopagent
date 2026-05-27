@@ -37,8 +37,7 @@ cd shopagent
 
 ### 2. Install dependencies
 ```bash
-npm install
-npm install express cors @anthropic-ai/sdk
+yarn install
 ```
 
 ### 3. Set up environment variables
@@ -81,14 +80,25 @@ yarn dev
 ## Project structure
 ```
 shopagent/
-├── src/
-│   ├── App.jsx          # Main UI — 4-step wizard, product cards, eval panel
-│   ├── agent.js         # Gmail fetch, Claude calls, CSV export, eval logger
-│   ├── GoogleAuth.jsx   # Google OAuth 2.0 token helper
-│   └── shop-agent.md    # System prompt — taste-match + deal optimisation model
-├── server.js            # Express backend — Claude API proxy + auth config
-├── vite.config.js       # Vite dev server with proxy routes to Express
-└── .env.example                # API keys (not committed to git)/commit will be empty 
+├── config/                     # Configuration
+│   ├── .env                    # API keys — not committed to git
+│   ├── .env.example            # Template for new developers
+│   └── vite.config.js          # Vite dev server with proxy routes to Express
+├── src/                        # Frontend (React + Vite)
+│   ├── promp/                  # AI system prompts
+│   │   ├── shop-agent.md       # Recommendation prompt
+│   │   └── receipt-extractor.md # Extraction prompt
+│   ├── agent.js                # Gmail fetch, Claude calls, CSV export, eval logger
+│   ├── App.jsx                 # Main UI — 4-step wizard, product cards, eval panel
+│   ├── components.jsx          # Reusable UI components
+│   ├── GoogleAuth.jsx          # Google OAuth 2.0 token helper
+│   └── main.jsx                # React entry point
+├── .gitignore
+├── index.html                  # Vite entry point
+├── package.json
+├── README.md
+├── server.js                   # Backend — Express :3001, Claude API proxy
+└── yarn.lock
 ```
 
 ## Agentic behaviours demonstrated
