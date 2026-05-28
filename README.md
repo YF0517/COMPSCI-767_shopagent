@@ -4,6 +4,9 @@ An AI-powered shopping assistant that reads your Gmail receipt history, learns y
 ## Demo
 https://youtu.be/qtWZNRmW4Zs
 
+## Demo(no sound only show it work)
+https://youtu.be/W_NzoH7iouQ
+
 ## What it does
 1. **Connects to Gmail** — Google OAuth read-only access scans your last 120 days of shopping emails
 2. **You choose** — browse the extracted receipt list and select which emails to include in the analysis
