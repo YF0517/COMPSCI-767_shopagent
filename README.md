@@ -1,6 +1,8 @@
 # ShopAgent 
 An AI-powered shopping assistant that reads your Gmail receipt history, learns your taste, and recommends smarter deals on things you already love and help you save money when you get paid, spend it wisely:)
 
+## Demo
+https://youtu.be/qtWZNRmW4Zs
 
 ## What it does
 1. **Connects to Gmail** — Google OAuth read-only access scans your last 120 days of shopping emails
