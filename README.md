@@ -75,13 +75,6 @@ yarn dev
 # Open http://localhost:5173
 ```
 
-## Testing(git action for test)
-
-### Run tests
-```bash
-NODE_ENV=test yarn test
-```
-
 
 ### 6. Use the app
 1. Click **Sign in with Google** — approve Gmail read-only access in the popup
@@ -124,10 +117,92 @@ shopagent/
 - **Decision-making**: filters non-purchase emails, scores product match quality 0–100
 - **Two-phase reasoning**: first Claude call extracts structured data, second call reasons over it
 
-## Known limitations
+## Testing & Evaluation
+
+### Run tests
+```bash
+NODE_ENV=test yarn test
+```
+
+### Automated test results — 10 tests, 2 files, all passing 
+```
+✓ src/tests/agent.test.js   (3 tests)  ~40ms
+✓ src/tests/server.test.js  (7 tests)  ~1.7s
+─────────────────────────────────────
+```
+### Test cases
+
+| # | Task | Input | Expected | Result | Type |
+|---|---|---|---|---|---|
+| 1 | CSV generates correct headers | 1 product object with all fields | CSV contains product name, brand, category | ✅ Pass | Unit |
+| 2 | CSV handles empty product list | Empty array `[]` | CSV still contains ShopAgent header | ✅ Pass | Unit |
+| 3 | JSON parser strips markdown | `` ```json
+{"test":true}
+``` `` | Returns parsed `{ test: true }` object | ✅ Pass | Unit |
+| 4 | Backend config endpoint | `GET /auth/config` | Returns `{ clientId: "..." }` with status 200 | ✅ Pass | Integration |
+| 5 | Claude API rejects empty body | `POST /api/v1/messages` with `{}` | Returns status 400 — not 200 | ✅ Pass | Integration |
+| 6 | Claude API returns recommendation | Real Sephora receipt sent as prompt | Status 200, JSON with `product` and `reason` fields | ✅ Pass | E2E |
+
+### Example task — E2E test (Test #6)
+**Input sent to Claude:**
+```
+Receipt: Sephora NZ $83.73
+Products: DIOR Addict Lip Glow, MAKE UP FOR EVER Mist & Fix Setting Spray
+Task: Recommend 1 similar product. Return JSON: { "product": "name", "reason": "why" }
+```
+**Claude's response:**
+```json
+{
+  "product": "Charlotte Tilbury Airbrush Flawless Setting Spray",
+  "reason": "Similar to MAKE UP FOR EVER Setting Spray — long-lasting finish at a similar price point available at Mecca NZ"
+}
+```
+**Result:** ✅ Status 200, valid JSON, product name non-empty, reason references receipt
+
+### Failure cases observed during development
+
+| Failure | Cause | Fix applied |
+|---|---|---|
+| `mcp_servers: Extra inputs not permitted` | Anthropic API rejects MCP from browser | Switched to Gmail REST API called directly |
+| `x-api-key header is required` | API key not loaded in Vite plugin | Rewrote to use Express backend with `fs.readFileSync` |
+| `Agent returned unexpected format` | Claude returned plain text, not JSON | Added strict JSON-only instruction to system prompt |
+| Gmail returns 0 emails | Subject-keyword filter too strict | Broadened query, added HTML body extraction |
+| `describe is not defined` | vitest globals not loaded | Added explicit imports in test files |
+
+### Performance observations
+
+| Metric | Observed value |
+|---|---|
+| Gmail fetch (50 emails, metadata only) | ~3–5 seconds |
+| Gmail fetch (40 emails, full HTML body) | ~8–12 seconds |
+| Claude extraction call (40 emails) | ~2–4 seconds |
+| Claude recommendation call | ~1–3 seconds |
+| Total pipeline (Gmail → recommendations) | ~15–20 seconds |
+| Unit tests (agent.test.js) | ~40ms |
+| Integration + E2E tests (server.test.js) | ~1.7s |
+
+### CI — GitHub Actions
+Tests run automatically on every push to `main` via `.github/workflows/test.yml`.
+
+
+## Critical Reflection
+### Known limitations
 - Gmail snippet only (no full email body) — some product names missed
 - OAuth tokens expire after 1 hour — no auto-refresh
 - Claude may hallucinate product prices — verify before purchasing
-- 25 email cap per session
-- No persistent user profile between sessions
-- Sometimes meet bugs or fail when analyse your preference
+- HTML email parsing | Deeply nested table layouts (e.g. some Sephora emails) can miss product names — body text is extracted but table cells may collapse into whitespace
+- promp change a little then the whole filter system behaves totally differently. Hrad to be consistant.
+
+### Design trade-offs
+
+- Haiku model vs Sonnet: Haiku is ~10x cheaper and fast, but produces less accurate product extraction on complex HTML emails. Sonnet would improve quality at higher cost.
+- Gmail REST API vs MCP: Direct REST API works in local dev with user OAuth token. MCP would be more elegant but requires Anthropic's own auth handshake — incompatible with a self-hosted app.
+- Session memory only: React state is simple and requires no database setup. Trade-off: no long-term learning — the agent starts fresh every session
+
+### Possible improvements
+- Better prompting.
+- Automate OAuth token refreshing
+- Upgrade to Sonnet for extraction.
+
+
+
