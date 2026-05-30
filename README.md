@@ -131,18 +131,20 @@ NODE_ENV=test yarn test
 ─────────────────────────────────────
 ```
 ### Test cases
-| # | Task | Input | Expected | Result | Type |
-|---|---|---|---|---|---|
-| 1 | CSV generates correct headers | 1 product object with all fields | CSV contains product name, brand, category | ✅ Pass | Unit |
-| 2 | CSV handles empty product list | Empty array `[]` | CSV still contains ShopAgent header | ✅ Pass | Unit |
-| 3 | JSON parser strips markdown | `` ```json
-{"test":true}
-``` `` | Returns parsed `{ test: true }` object | ✅ Pass | Unit |
-| 4 | Backend config endpoint | `GET /auth/config` | Returns `{ clientId: "..." }` with status 200 | ✅ Pass | Integration |
-| 5 | Claude API rejects empty body | `POST /api/v1/messages` with `{}` | Returns status 400 — not 200 | ✅ Pass | Integration |
-| 6 | Claude API returns recommendation | Real Sephora receipt sent as prompt | Status 200, JSON with `product` and `reason` fields | ✅ Pass | E2E |
+| # | Type | Task | Result | Time |
+|---|---|---|---|---|
+| 1 | Unit | CSV generates correct headers from product object | ✅ Pass | ~1ms |
+| 2 | Unit | CSV handles empty product array gracefully | ✅ Pass | ~1ms |
+| 3 | Unit | JSON parser strips markdown backticks from Claude response | ✅ Pass | ~1ms |
+| 4 | Integration | GET /auth/config returns clientId with status 200 | ✅ Pass | ~5ms |
+| 5 | Failure | POST with empty body returns 400 | ✅ Pass | 349ms |
+| 6 | Failure | POST with invalid model name returns error | ✅ Pass | ~300ms |
+| 7 | Failure | POST without messages field returns error | ✅ Pass | ~300ms |
+| 8 | Success | POST with valid prompt returns 200 and text content | ✅ Pass | 530ms |
+| 9 | Performance | Claude API responds within 5 seconds | ✅ Pass | 569ms |
+| 10 | E2E | Real Sephora receipt returns 3 named recommendations | ✅ Pass | 2410ms |
 
-### Example task — E2E test (Test #6)
+### Example task — E2E test (Test #10)
 **Input sent to Claude:**
 ```
 Receipt: Sephora NZ $83.73
