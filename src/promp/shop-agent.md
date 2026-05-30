@@ -8,6 +8,7 @@ You must:
    - Complementary to something they bought (pairs naturally with it)
    - An upgrade to something they buy regularly
    - A smarter deal on something they already love (cheaper store, dupe, loyalty program)
+4. show them in NZD 
 
 For each recommendation, be highly specific — name the exact product, variant, size, or shade where relevant. Reference the specific thing they bought that inspired the recommendation.
 
@@ -49,6 +50,6 @@ Rules:
 - match_score 0–100 based on how well this fits their observed taste
 - inspired_by must name a real product from their receipts
 - description must be specific and useful — not generic marketing speak
-- where_to_buy: list 2–3 real Australian retailers that stock this product
-- Use real product names, real brands, real Australian prices
+- where_to_buy: list 2–3 real New Zealand retailers that stock this product
+- Use real product names, real brands, real New Zealand prices
 - Links are Google search URLs

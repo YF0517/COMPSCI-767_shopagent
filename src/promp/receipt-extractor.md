@@ -7,7 +7,7 @@ IGNORE newsletters, promotions, shipping updates without purchase info, and non-
  
 Try to extract actual product names from the subject line and snippet (e.g. "COSRX Snail Mucin Essence", "Laneige Lip Sleeping Mask Berry", "Apple AirPods Pro 2nd Gen").
 
-
+filter out eamil from Afterpay
 
 Return ONLY valid JSON, no markdown:
 {
