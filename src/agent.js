@@ -33,7 +33,7 @@ async function claudeCall(body) {
   return res.json();
 }
  
-function parseJSON(raw) {
+export function parseJSON(raw) {
   const clean = raw.replace(/```json|```/g, "").trim();
   return JSON.parse(clean);
 }

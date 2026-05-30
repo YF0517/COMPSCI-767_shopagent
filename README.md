@@ -75,6 +75,14 @@ yarn dev
 # Open http://localhost:5173
 ```
 
+## Testing(git action for test)
+
+### Run tests
+```bash
+NODE_ENV=test yarn test
+```
+
+
 ### 6. Use the app
 1. Click **Sign in with Google** — approve Gmail read-only access in the popup
 2. Select which receipt emails to analyse
@@ -93,6 +101,9 @@ shopagent/
 │   ├── promp/                  # AI system prompts
 │   │   ├── shop-agent.md       # Recommendation prompt
 │   │   └── receipt-extractor.md # Extraction prompt
+│   ├── tests/                   # Test suite
+│   │   ├── agent.test.js        # Unit tests — CSV export, JSON parsing
+│   │   └── server.test.js       # Integration + E2E tests — API endpoints
 │   ├── agent.js                # Gmail fetch, Claude calls, CSV export, eval logger
 │   ├── App.jsx                 # Main UI — 4-step wizard, product cards, eval panel
 │   ├── components.jsx          # Reusable UI components

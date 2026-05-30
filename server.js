@@ -21,15 +21,21 @@ function readEnv(key) {
 const API_KEY = readEnv("VITE_API_KEY");
 const GOOGLE_CLIENT_ID = readEnv("VITE_GOOGLE_CLIENT_ID");
 
-if (!API_KEY) { console.error("VITE_API_KEY not found in .env"); process.exit(1); }
-console.log(`API key: sk-ant-...${API_KEY.slice(-4)}`);
-console.log(`Google Client ID: ${GOOGLE_CLIENT_ID ? "loaded" : "⚠️ missing"}`);
+// Don't exit in test environment — just warn
+if (!API_KEY && process.env.NODE_ENV !== "test") {
+  console.error("VITE_API_KEY not found in .env");
+  process.exit(1);
+}
 
-const client = new Anthropic({ apiKey: API_KEY });
+if (process.env.NODE_ENV !== "test") {
+  console.log(`API key: sk-ant-...${API_KEY.slice(-4)}`);
+  console.log(`Google Client ID: ${GOOGLE_CLIENT_ID ? "loaded" : "⚠️ missing"}`);
+}
+
+const client = new Anthropic({ apiKey: API_KEY || "test-key" });
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json({ limit: "4mb" }));
-
 
 app.post("/api/v1/messages", async (req, res) => {
   try {
@@ -46,4 +52,8 @@ app.get("/auth/config", (req, res) => {
   res.json({ clientId: GOOGLE_CLIENT_ID });
 });
 
-app.listen(3001, () => console.log(" ShopAgent backend at http://localhost:3001"));
+if (process.env.NODE_ENV !== "test") {
+  app.listen(3001, () => console.log("ShopAgent backend at http://localhost:3001"));
+}
+
+export default app;
