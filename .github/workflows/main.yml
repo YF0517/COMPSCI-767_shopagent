@@ -17,14 +17,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install
 
       - name: Run tests
-        run: yarn test
+        run: NODE_ENV=test yarn test
         env:
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
