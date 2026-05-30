@@ -169,17 +169,6 @@ Task: Recommend 1 similar product. Return JSON: { "product": "name", "reason": "
 | Gmail returns 0 emails | Subject-keyword filter too strict | Broadened query, added HTML body extraction |
 | `describe is not defined` | vitest globals not loaded | Added explicit imports in test files |
 
-### Performance observations
-
-| Metric | Observed value |
-|---|---|
-| Gmail fetch (50 emails, metadata only) | ~3–5 seconds |
-| Gmail fetch (40 emails, full HTML body) | ~8–12 seconds |
-| Claude extraction call (40 emails) | ~2–4 seconds |
-| Claude recommendation call | ~1–3 seconds |
-| Total pipeline (Gmail → recommendations) | ~15–20 seconds |
-| Unit tests (agent.test.js) | ~40ms |
-| Integration + E2E tests (server.test.js) | ~1.7s |
 
 ### CI — GitHub Actions
 Tests run automatically on every push to `main` via `.github/workflows/test.yml`.
