@@ -131,7 +131,6 @@ NODE_ENV=test yarn test
 ─────────────────────────────────────
 ```
 ### Test cases
-
 | # | Task | Input | Expected | Result | Type |
 |---|---|---|---|---|---|
 | 1 | CSV generates correct headers | 1 product object with all fields | CSV contains product name, brand, category | ✅ Pass | Unit |
@@ -171,7 +170,7 @@ Task: Recommend 1 similar product. Return JSON: { "product": "name", "reason": "
 
 
 ### CI — GitHub Actions
-Tests run automatically on every push to `main` via `.github/workflows/test.yml`.
+Tests run automatically on every push to `main` via `.github/workflows/main.yml`.
 
 
 ## Critical Reflection
